@@ -55,7 +55,7 @@ export function MapView({
       style: BASE_STYLE as any,
       center: [0, 30],
       zoom: 2,
-      attributionControl: true,
+      // attributionControl por defecto activo (tipos de maplibre no aceptan `true`)
     });
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
