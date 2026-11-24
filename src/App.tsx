@@ -145,6 +145,7 @@ export default function App() {
           clickedLngLat={clickedLngLat}
           onMapClick={handleMapClick}
           interactive={phase === 'playing'}
+          viewResetKey={`${phase}-${currentIndex}-${currentQuestion?.id ?? ''}`}
         />
       </div>
 
