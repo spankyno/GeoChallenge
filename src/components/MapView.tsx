@@ -227,7 +227,7 @@ export function MapView({
     }
   }, [entities]);
 
-  // Highlight de la respuesta correcta
+  // Highlight de la respuesta correcta (solo zoom si hay entidad)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
@@ -253,14 +253,33 @@ export function MapView({
     }
   }, [highlightedEntity]);
 
-  // Extensión mundial al empezar partida y entre preguntas
+  // Forzar extensión mundial cada vez que cambia viewResetKey (inicio / Siguiente)
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    if (!interactive || highlightedEntity) return;
-    map.stop();
-    map.flyTo({ ...WORLD_VIEW, duration: 600 });
-  }, [viewResetKey, interactive, highlightedEntity]);
+    if (!map) return;
+
+    const resetWorld = () => {
+      try {
+        map.stop();
+        // jumpTo es inmediato; evita que una animación previa lo cancele
+        map.jumpTo({
+          center: WORLD_VIEW.center,
+          zoom: WORLD_VIEW.zoom,
+          bearing: 0,
+          pitch: 0,
+        });
+      } catch {
+        /* mapa aún no listo */
+      }
+    };
+
+    if (map.isStyleLoaded()) {
+      // micro-delay para ir después del clear de highlight en el mismo tick
+      const t = window.setTimeout(resetWorld, 50);
+      return () => window.clearTimeout(t);
+    }
+    map.once('load', resetWorld);
+  }, [viewResetKey]);
 
   // Marcador del clic del usuario
   useEffect(() => {
