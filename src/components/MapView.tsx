@@ -207,7 +207,7 @@ export function MapView({
     }
   }, [entities]);
 
-  // Highlight de la respuesta correcta
+  // Highlight de la respuesta correcta + restaurar vista mundial en nueva pregunta
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
@@ -226,13 +226,17 @@ export function MapView({
           },
         ],
       });
-      // Fly to entity
+      // Zoom a la respuesta
       const center = getEntityCenter(highlightedEntity.geometry);
       map.flyTo({ center, zoom: Math.max(map.getZoom(), 4), duration: 800 });
     } else {
       source.setData({ type: 'FeatureCollection', features: [] });
+      // Nueva pregunta / sin highlight: volver a la extensión mundial
+      if (interactive) {
+        map.flyTo({ center: [0, 20], zoom: 2, duration: 700 });
+      }
     }
-  }, [highlightedEntity]);
+  }, [highlightedEntity, interactive]);
 
   // Marcador del clic del usuario
   useEffect(() => {
