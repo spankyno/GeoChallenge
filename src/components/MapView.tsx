@@ -227,59 +227,75 @@ export function MapView({
     }
   }, [entities]);
 
-  // Highlight de la respuesta correcta (solo zoom si hay entidad)
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+  // Cámara + highlight: una sola fuente de verdad
+  // - Si hay highlightedEntity → pintar y acercar
+  // - Si cambia viewResetKey (Siguiente / inicio) → extensión mundial obligatoria
+  const lastResetKey = useRef<string | number | null>(null);
 
-    const source = map.getSource('highlight') as maplibregl.GeoJSONSource | undefined;
-    if (!source) return;
-
-    if (highlightedEntity) {
-      source.setData({
-        type: 'FeatureCollection',
-        features: [
-          {
-            type: 'Feature',
-            properties: {},
-            geometry: highlightedEntity.geometry,
-          },
-        ],
-      });
-      const center = getEntityCenter(highlightedEntity.geometry);
-      map.flyTo({ center, zoom: Math.max(map.getZoom(), 4), duration: 800 });
-    } else {
-      source.setData({ type: 'FeatureCollection', features: [] });
-    }
-  }, [highlightedEntity]);
-
-  // Forzar extensión mundial cada vez que cambia viewResetKey (inicio / Siguiente)
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    const resetWorld = () => {
-      try {
+    const run = () => {
+      if (!map.isStyleLoaded()) return;
+
+      const highlightSrc = map.getSource('highlight') as maplibregl.GeoJSONSource | undefined;
+      const resetChanged = lastResetKey.current !== viewResetKey;
+      if (resetChanged) lastResetKey.current = viewResetKey;
+
+      // 1) Tras "Siguiente" o inicio de partida: siempre mundo (prioritario)
+      if (resetChanged && viewResetKey !== 0) {
+        if (highlightSrc) {
+          highlightSrc.setData({ type: 'FeatureCollection', features: [] });
+        }
         map.stop();
-        // jumpTo es inmediato; evita que una animación previa lo cancele
         map.jumpTo({
           center: WORLD_VIEW.center,
           zoom: WORLD_VIEW.zoom,
           bearing: 0,
           pitch: 0,
         });
-      } catch {
-        /* mapa aún no listo */
+        // segundo salto en el siguiente frame por si MapLibre re-aplica el flyTo anterior
+        requestAnimationFrame(() => {
+          map.stop();
+          map.jumpTo({
+            center: WORLD_VIEW.center,
+            zoom: WORLD_VIEW.zoom,
+            bearing: 0,
+            pitch: 0,
+          });
+        });
+        return;
+      }
+
+      // 2) Feedback: resaltar y acercar a la respuesta
+      if (highlightedEntity) {
+        if (highlightSrc) {
+          highlightSrc.setData({
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                properties: {},
+                geometry: highlightedEntity.geometry,
+              },
+            ],
+          });
+        }
+        const center = getEntityCenter(highlightedEntity.geometry);
+        map.stop();
+        map.easeTo({ center, zoom: Math.max(map.getZoom(), 4), duration: 700 });
+      } else if (highlightSrc) {
+        highlightSrc.setData({ type: 'FeatureCollection', features: [] });
       }
     };
 
     if (map.isStyleLoaded()) {
-      // micro-delay para ir después del clear de highlight en el mismo tick
-      const t = window.setTimeout(resetWorld, 50);
-      return () => window.clearTimeout(t);
+      run();
+    } else {
+      map.once('load', run);
     }
-    map.once('load', resetWorld);
-  }, [viewResetKey]);
+  }, [highlightedEntity, viewResetKey]);
 
   // Marcador del clic del usuario
   useEffect(() => {
