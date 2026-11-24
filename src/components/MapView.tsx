@@ -16,6 +16,57 @@ interface MapViewProps {
 }
 
 const WORLD_VIEW = { center: [0, 20] as [number, number], zoom: 1.8 };
+
+/** Ajusta el mapa para que se vean el clic del usuario y el centro de la respuesta */
+function fitClickAndAnswer(
+  map: maplibregl.Map,
+  click: [number, number],
+  answerCenter: [number, number]
+) {
+  const [lng1, lat1] = click;
+  const [lng2, lat2] = answerCenter;
+
+  // Mismo punto (casi): zoom local fijo
+  const same =
+    Math.abs(lng1 - lng2) < 0.05 && Math.abs(lat1 - lat2) < 0.05;
+
+  map.stop();
+  if (same) {
+    map.easeTo({ center: answerCenter, zoom: 5, duration: 700 });
+    return;
+  }
+
+  const minLng = Math.min(lng1, lng2);
+  const maxLng = Math.max(lng1, lng2);
+  const minLat = Math.min(lat1, lat2);
+  const maxLat = Math.max(lat1, lat2);
+
+  // Evitar bounds degenerados
+  const padLng = Math.max((maxLng - minLng) * 0.15, 0.5);
+  const padLat = Math.max((maxLat - minLat) * 0.15, 0.5);
+
+  map.fitBounds(
+    [
+      [minLng - padLng, minLat - padLat],
+      [maxLng + padLng, maxLat + padLat],
+    ],
+    {
+      padding: { top: 60, bottom: 120, left: 40, right: 40 },
+      maxZoom: 8,
+      duration: 800,
+    }
+  );
+}
+
+function goWorld(map: maplibregl.Map) {
+  map.stop();
+  map.jumpTo({
+    center: WORLD_VIEW.center,
+    zoom: WORLD_VIEW.zoom,
+    bearing: 0,
+    pitch: 0,
+  });
+}
 /**
  * Mapa base mudo, sin API key.
  * Esri World Light Gray Base — costas y relieve suave, sin nombres de países.
@@ -227,49 +278,49 @@ export function MapView({
     }
   }, [entities]);
 
-  // Cámara + highlight: una sola fuente de verdad
-  // - Si hay highlightedEntity → pintar y acercar
-  // - Si cambia viewResetKey (Siguiente / inicio) → extensión mundial obligatoria
+  /**
+   * Lógica de identificación + cámara
+   * ─────────────────────────────────
+   * PREGUNTA (sin result): vista mundial, sin highlight.
+   * RESPUESTA (hay entity + clic): resalta geometría, marca clic,
+   *   zoom que abarca ambos puntos.
+   * SIGUIENTE / inicio (viewResetKey ↑): limpia y vuelve a vista mundial.
+   */
   const lastResetKey = useRef<string | number | null>(null);
+  const lastFeedbackId = useRef<string | null>(null);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    const run = () => {
+    const apply = () => {
       if (!map.isStyleLoaded()) return;
 
       const highlightSrc = map.getSource('highlight') as maplibregl.GeoJSONSource | undefined;
-      const resetChanged = lastResetKey.current !== viewResetKey;
-      if (resetChanged) lastResetKey.current = viewResetKey;
+      const clickSrc = map.getSource('click-marker') as maplibregl.GeoJSONSource | undefined;
 
-      // 1) Tras "Siguiente" o inicio de partida: siempre mundo (prioritario)
-      if (resetChanged && viewResetKey !== 0) {
+      // ── A) Reset mundial (inicio de partida o "Siguiente") ──
+      const resetChanged = lastResetKey.current !== viewResetKey;
+      if (resetChanged) {
+        lastResetKey.current = viewResetKey;
+        lastFeedbackId.current = null;
         if (highlightSrc) {
           highlightSrc.setData({ type: 'FeatureCollection', features: [] });
         }
-        map.stop();
-        map.jumpTo({
-          center: WORLD_VIEW.center,
-          zoom: WORLD_VIEW.zoom,
-          bearing: 0,
-          pitch: 0,
-        });
-        // segundo salto en el siguiente frame por si MapLibre re-aplica el flyTo anterior
-        requestAnimationFrame(() => {
-          map.stop();
-          map.jumpTo({
-            center: WORLD_VIEW.center,
-            zoom: WORLD_VIEW.zoom,
-            bearing: 0,
-            pitch: 0,
-          });
-        });
+        if (clickSrc) {
+          clickSrc.setData({ type: 'FeatureCollection', features: [] });
+        }
+        goWorld(map);
         return;
       }
 
-      // 2) Feedback: resaltar y acercar a la respuesta
-      if (highlightedEntity) {
+      // ── B) Feedback: clic + respuesta correcta ──
+      if (highlightedEntity && clickedLngLat) {
+        const feedbackId = `${highlightedEntity.id}:${clickedLngLat[0]},${clickedLngLat[1]}`;
+        // Solo animar una vez por respuesta
+        const isNewFeedback = lastFeedbackId.current !== feedbackId;
+        lastFeedbackId.current = feedbackId;
+
         if (highlightSrc) {
           highlightSrc.setData({
             type: 'FeatureCollection',
@@ -282,44 +333,38 @@ export function MapView({
             ],
           });
         }
-        const center = getEntityCenter(highlightedEntity.geometry);
-        map.stop();
-        map.easeTo({ center, zoom: Math.max(map.getZoom(), 4), duration: 700 });
-      } else if (highlightSrc) {
+        if (clickSrc) {
+          clickSrc.setData({
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                properties: {},
+                geometry: { type: 'Point', coordinates: clickedLngLat },
+              },
+            ],
+          });
+        }
+
+        if (isNewFeedback) {
+          const answerCenter = getEntityCenter(highlightedEntity.geometry);
+          fitClickAndAnswer(map, clickedLngLat, answerCenter);
+        }
+        return;
+      }
+
+      // ── C) Sin feedback: limpiar overlays (mantener cámara) ──
+      if (highlightSrc) {
         highlightSrc.setData({ type: 'FeatureCollection', features: [] });
+      }
+      if (clickSrc) {
+        clickSrc.setData({ type: 'FeatureCollection', features: [] });
       }
     };
 
-    if (map.isStyleLoaded()) {
-      run();
-    } else {
-      map.once('load', run);
-    }
-  }, [highlightedEntity, viewResetKey]);
-
-  // Marcador del clic del usuario
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-
-    const source = map.getSource('click-marker') as maplibregl.GeoJSONSource | undefined;
-    if (!source) return;
-
-    if (clickedLngLat) {
-      source.setData({
-        type: 'FeatureCollection',
-        features: [
-          {
-            type: 'Feature',
-            properties: {},
-            geometry: { type: 'Point', coordinates: clickedLngLat },
-          },
-        ],
-      });
-    } else {
-      source.setData({ type: 'FeatureCollection', features: [] });
-    }
-  }, [clickedLngLat]);
+    if (map.isStyleLoaded()) apply();
+    else map.once('load', apply);
+  }, [highlightedEntity, clickedLngLat, viewResetKey]);
 
   // Actualizar cursor según interactive
   useEffect(() => {
