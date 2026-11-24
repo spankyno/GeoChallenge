@@ -108,7 +108,9 @@ export default function App() {
     setLoadError(null);
   }, []);
 
-  const mapEntities = useMemo(() => entities, [entities]);
+  // No mostrar geometrías de respuesta mientras se juega (evita spoilear ríos/países).
+  // Solo se pinta la entidad correcta en la fase de feedback (highlightedEntity).
+  const mapEntities = useMemo(() => [], []);
 
   return (
     <div className="h-full w-full relative bg-slate-100">
