@@ -13,21 +13,26 @@ interface MapViewProps {
   interactive: boolean; // false mientras se muestra feedback
 }
 
+/** Mapa base mudo (sin nombres de países, ciudades ni leyendas) */
 const BASE_STYLE = {
   version: 8 as const,
   sources: {
-    osm: {
+    basemap: {
       type: 'raster' as const,
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tiles: [
+        'https://a.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png',
+        'https://b.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png',
+        'https://c.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png',
+      ],
       tileSize: 256,
-      attribution: '© OpenStreetMap',
+      attribution: '© OpenStreetMap © CARTO',
     },
   },
   layers: [
     {
-      id: 'osm',
+      id: 'basemap',
       type: 'raster' as const,
-      source: 'osm',
+      source: 'basemap',
       minzoom: 0,
       maxzoom: 19,
     },
