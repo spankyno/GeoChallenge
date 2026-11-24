@@ -63,13 +63,24 @@ function pickField(props: Record<string, unknown>, fields: string[]): string | u
   return undefined;
 }
 
-/** Genera un id estable a partir de propiedades o índice */
+/**
+ * Id estable y único por feature.
+ * No usar scalerank / min_zoom (se repiten en cientos de ríos y colapsan el merge).
+ */
 function makeId(theme: ThemeId, props: Record<string, unknown>, index: number, name?: string): string {
-  const code = pickField(props, [
-    'ISO_A2', 'ISO_A3', 'ADM0_A3', 'adm1_code', 'ADM1_CODE',
-    'NE_ID', 'ne_id', 'scalerank',
+  const unique = pickField(props, [
+    'ISO_A2',
+    'ISO_A3',
+    'ADM0_A3',
+    'adm1_code',
+    'ADM1_CODE',
+    'NE_ID',
+    'ne_id',
+    'WIKIDATAID',
+    'wikidataid',
   ]);
-  if (code) return `${theme}-${code}`;
+  if (unique) return `${theme}-${unique}`;
+  // Nombre + índice: evita colisiones entre homónimos (p. ej. varios "Ob")
   if (name) return `${theme}-${name.toLowerCase().replace(/\s+/g, '-')}-${index}`;
   return `${theme}-${index}`;
 }

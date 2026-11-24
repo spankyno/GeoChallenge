@@ -101,7 +101,8 @@ export default function App() {
       return;
     }
     if (next >= questions.length) {
-      const more = generateQuestions(entities, 5);
+      const used = new Set(questions.map((q) => q.entity.id));
+      const more = generateQuestions(entities, 5, used);
       setQuestions((prev) => [...prev, ...more]);
     }
     setCurrentIndex(next);

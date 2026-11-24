@@ -28,11 +28,17 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-export function generateQuestions(entities: GeoEntity[], count: number): Question[] {
-  const pool = shuffle(entities);
+export function generateQuestions(
+  entities: GeoEntity[],
+  count: number,
+  excludeIds: Set<string> = new Set()
+): Question[] {
+  // Preferir entidades aún no usadas (menos repetición entre rondas / modo infinito)
+  const fresh = entities.filter((e) => !excludeIds.has(e.id));
+  const pool = shuffle(fresh.length > 0 ? fresh : entities);
   const selected = count > 0 ? pool.slice(0, Math.min(count, pool.length)) : pool;
   return selected.map((entity, i) => ({
-    id: `q-${i}-${entity.id}`,
+    id: `q-${i}-${entity.id}-${Math.random().toString(36).slice(2, 7)}`,
     entity,
     prompt: buildPrompt(entity),
     hints: buildHints(entity),
