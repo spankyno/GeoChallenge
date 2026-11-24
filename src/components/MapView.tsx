@@ -44,7 +44,9 @@ export function MapView({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const onClickRef = useRef(onMapClick);
+  const interactiveRef = useRef(interactive);
   onClickRef.current = onMapClick;
+  interactiveRef.current = interactive;
 
   // Inicializar mapa
   useEffect(() => {
@@ -171,16 +173,16 @@ export function MapView({
       });
     });
 
-    // Clic en el mapa
+    // Clic en el mapa (usar ref para no quedar con el valor inicial de interactive)
     map.on('click', (e) => {
-      if (!interactive) return;
+      if (!interactiveRef.current) return;
       const { lng, lat } = e.lngLat;
       onClickRef.current(lng, lat);
     });
 
     // Cursor
     map.on('mouseenter', 'entities-fill', () => {
-      map.getCanvas().style.cursor = interactive ? 'pointer' : 'default';
+      map.getCanvas().style.cursor = interactiveRef.current ? 'pointer' : 'default';
     });
     map.on('mouseleave', 'entities-fill', () => {
       map.getCanvas().style.cursor = '';
