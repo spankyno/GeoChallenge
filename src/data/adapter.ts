@@ -35,9 +35,12 @@ export const DEFAULT_MAPPINGS: Record<ThemeId, PropertyMapping> = {
     subtypeFields: ['type', 'TYPE', 'featurecla'],
   },
   rivers: {
-    nameFields: ['name', 'NAME', 'NAME_ES'],
-    nameAltFields: ['name_alt', 'NAME_ALT'],
-    subtypeFields: ['featurecla', 'FEATURECLA', 'type'],
+    // Natural Earth 50m rivers: campos en minúsculas
+    nameFields: ['name', 'NAME', 'name_en', 'NAME_ES'],
+    nameAltFields: ['name_en', 'name_alt', 'NAME_ALT'],
+    subtypeFields: ['featurecla', 'FEATURECLA'],
+    // Solo ríos (excluir "Lake Centerline")
+    filter: { field: 'featurecla', values: ['River'] },
   },
   geo_features: {
     nameFields: ['name', 'NAME', 'NAME_ES'],
