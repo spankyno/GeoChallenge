@@ -35,6 +35,8 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hintsShown, setHintsShown] = useState(0);
   const [hintsRemaining, setHintsRemaining] = useState(0);
+  /** Contador explícito para forzar reset de zoom del mapa */
+  const [mapResetToken, setMapResetToken] = useState(0);
 
   const currentQuestion = questions[currentIndex] ?? null;
 
@@ -58,6 +60,7 @@ export default function App() {
       setClickedLngLat(null);
       setHintsShown(0);
       setHintsRemaining(config.hintsEnabled ? config.hintsTotal : 0);
+      setMapResetToken((n) => n + 1);
       setPhase('playing');
     } catch (err) {
       console.error(err);
@@ -109,6 +112,7 @@ export default function App() {
     setResult(null);
     setClickedLngLat(null);
     setHintsShown(0);
+    setMapResetToken((n) => n + 1);
     setPhase('playing');
   }, [currentIndex, questions.length, config.questionCount, entities]);
 
@@ -145,7 +149,7 @@ export default function App() {
           clickedLngLat={clickedLngLat}
           onMapClick={handleMapClick}
           interactive={phase === 'playing'}
-          viewResetKey={`${phase}-${currentIndex}-${currentQuestion?.id ?? ''}`}
+          viewResetKey={mapResetToken}
         />
       </div>
 
