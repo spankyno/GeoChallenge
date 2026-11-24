@@ -127,7 +127,13 @@ export default function App() {
     setHintsShown(0);
   }, []);
 
-  const mapEntities = useMemo(() => entities, [entities]);
+  // Solo la capa de la temática de la pregunta actual (países, ríos, etc.)
+  const mapEntities = useMemo(() => {
+    if (!currentQuestion) return [];
+    return entities.filter((e) => e.theme === currentQuestion.entity.theme);
+  }, [entities, currentQuestion]);
+
+  const isGamePanel = phase === 'playing' || phase === 'feedback';
 
   return (
     <div className="h-full w-full relative bg-slate-100">
@@ -141,7 +147,14 @@ export default function App() {
         />
       </div>
 
-      <div className="absolute inset-0 pointer-events-none flex items-start justify-center p-4 md:p-6">
+      {/* Setup / loading / summary: centrado arriba; pregunta: esquina inferior izquierda */}
+      <div
+        className={`absolute inset-0 pointer-events-none flex p-4 md:p-6 ${
+          isGamePanel
+            ? 'items-end justify-start'
+            : 'items-start justify-center'
+        }`}
+      >
         <div className="pointer-events-auto">
           {phase === 'setup' && (
             <div className="space-y-3">
@@ -162,22 +175,20 @@ export default function App() {
             </div>
           )}
 
-          {(phase === 'playing' || phase === 'feedback') && (
-            <div className="mt-2">
-              <QuestionPanel
-                question={currentQuestion}
-                result={result}
-                score={score}
-                config={config}
-                questionIndex={currentIndex}
-                totalQuestions={config.questionCount}
-                hintsShown={hintsShown}
-                hintsRemaining={hintsRemaining}
-                onRevealHint={handleRevealHint}
-                onNext={handleNext}
-                onQuit={handleQuit}
-              />
-            </div>
+          {isGamePanel && (
+            <QuestionPanel
+              question={currentQuestion}
+              result={result}
+              score={score}
+              config={config}
+              questionIndex={currentIndex}
+              totalQuestions={config.questionCount}
+              hintsShown={hintsShown}
+              hintsRemaining={hintsRemaining}
+              onRevealHint={handleRevealHint}
+              onNext={handleNext}
+              onQuit={handleQuit}
+            />
           )}
 
           {phase === 'summary' && (
