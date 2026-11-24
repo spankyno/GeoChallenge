@@ -53,7 +53,7 @@ public/
 | Países     | Natural Earth 50m (242)        |
 | Capitales  | Natural Earth 50m (~215)       |
 | Provincias | Mock (ampliable)               |
-| Ríos       | Mock (ampliable)               |
+| Ríos       | Natural Earth 50m (~350)       |
 | Accidentes | Mock (ampliable)               |
 
 Para añadir más capas: coloca el GeoJSON en `public/data/`, registra la ruta en `src/data/loader.ts` y ajusta el mapping en `src/data/adapter.ts` si hace falta.
