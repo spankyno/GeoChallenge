@@ -98,6 +98,13 @@ function distToMultiLineStringKm(lng: number, lat: number, ml: MultiLineString):
   return min;
 }
 
+/** Distancia mínima al anillo exterior del polígono */
+function distToPolygonKm(lng: number, lat: number, poly: Polygon): number {
+  const outer = poly.coordinates[0];
+  if (!outer || outer.length < 2) return Infinity;
+  return distToLineStringKm(lng, lat, { type: 'LineString', coordinates: outer });
+}
+
 /**
  * Comprueba si el clic (lng, lat) acierta la entidad.
  */
@@ -113,11 +120,18 @@ export function evaluateClick(
 
   if (geom.type === 'Polygon') {
     const inside = pointInPolygon(lng, lat, geom);
-    return { correct: inside, distanceKm: inside ? 0 : Infinity };
+    if (inside) return { correct: true, distanceKm: 0 };
+    const dist = distToPolygonKm(lng, lat, geom);
+    return { correct: dist <= tol, distanceKm: dist };
   }
   if (geom.type === 'MultiPolygon') {
     const inside = pointInMultiPolygon(lng, lat, geom);
-    return { correct: inside, distanceKm: inside ? 0 : Infinity };
+    if (inside) return { correct: true, distanceKm: 0 };
+    let min = Infinity;
+    for (const polyCoords of geom.coordinates) {
+      min = Math.min(min, distToPolygonKm(lng, lat, { type: 'Polygon', coordinates: polyCoords }));
+    }
+    return { correct: min <= tol, distanceKm: min };
   }
   if (geom.type === 'Point') {
     const [plng, plat] = (geom as Point).coordinates;

@@ -29,10 +29,11 @@ export const DEFAULT_MAPPINGS: Record<ThemeId, PropertyMapping> = {
     filter: { field: 'FEATURECLA', values: ['Admin-0 capital', 'Admin-0 capital alt'] },
   },
   provinces: {
-    nameFields: ['NAME_ES', 'name', 'NAME', 'NAME_1'],
-    nameAltFields: ['NAME_EN', 'name_alt'],
-    codeFields: ['iso_3166_2', 'ISO_3166_2', 'ADM1_CODE'],
-    subtypeFields: ['type', 'TYPE', 'featurecla'],
+    // Natural Earth 50m admin_1 (~294 subdivisiones principales: estados EE.UU., oblasts, etc.)
+    nameFields: ['name_es', 'NAME_ES', 'name', 'NAME', 'name_en'],
+    nameAltFields: ['name_en', 'name', 'name_local'],
+    codeFields: ['adm1_code', 'ADM1_CODE', 'iso_3166_2', 'postal'],
+    subtypeFields: ['type_en', 'type', 'TYPE'],
   },
   rivers: {
     // Natural Earth 50m rivers: campos en minúsculas
@@ -43,9 +44,11 @@ export const DEFAULT_MAPPINGS: Record<ThemeId, PropertyMapping> = {
     filter: { field: 'featurecla', values: ['River'] },
   },
   geo_features: {
-    nameFields: ['name', 'NAME', 'NAME_ES'],
-    nameAltFields: ['name_alt', 'NAME_ALT'],
-    subtypeFields: ['featurecla', 'FEATURECLA', 'type', 'TYPE'],
+    // Polys usan NAME/NAME_ES/FEATURECLA; points usan name/name_es/featurecla
+    nameFields: ['NAME_ES', 'name_es', 'NAME', 'name', 'NAME_EN', 'name_en'],
+    nameAltFields: ['NAME_EN', 'name_en', 'NAMEALT', 'name_alt'],
+    codeFields: ['NE_ID', 'ne_id', 'WIKIDATAID', 'wikidataid'],
+    subtypeFields: ['FEATURECLA', 'featurecla'],
   },
 };
 
@@ -62,7 +65,10 @@ function pickField(props: Record<string, unknown>, fields: string[]): string | u
 
 /** Genera un id estable a partir de propiedades o índice */
 function makeId(theme: ThemeId, props: Record<string, unknown>, index: number, name?: string): string {
-  const code = pickField(props, ['ISO_A2', 'ISO_A3', 'ADM0_A3', 'ADM1_CODE', 'ne_id', 'scalerank']);
+  const code = pickField(props, [
+    'ISO_A2', 'ISO_A3', 'ADM0_A3', 'adm1_code', 'ADM1_CODE',
+    'NE_ID', 'ne_id', 'scalerank',
+  ]);
   if (code) return `${theme}-${code}`;
   if (name) return `${theme}-${name.toLowerCase().replace(/\s+/g, '-')}-${index}`;
   return `${theme}-${index}`;

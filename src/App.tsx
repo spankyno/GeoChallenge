@@ -17,6 +17,10 @@ const DEFAULT_CONFIG: GameConfig = {
   themes: ['countries'],
   difficulty: 2,
   questionCount: 5,
+  scoreMode: 'precise',
+  hintsEnabled: false,
+  hintsPerQuestion: 1,
+  hintsTotal: 5,
 };
 
 export default function App() {
@@ -29,6 +33,8 @@ export default function App() {
   const [result, setResult] = useState<AnswerResult | null>(null);
   const [clickedLngLat, setClickedLngLat] = useState<[number, number] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [hintsShown, setHintsShown] = useState(0);
+  const [hintsRemaining, setHintsRemaining] = useState(0);
 
   const currentQuestion = questions[currentIndex] ?? null;
 
@@ -50,6 +56,8 @@ export default function App() {
       setScore(createInitialScore());
       setResult(null);
       setClickedLngLat(null);
+      setHintsShown(0);
+      setHintsRemaining(config.hintsEnabled ? config.hintsTotal : 0);
       setPhase('playing');
     } catch (err) {
       console.error(err);
@@ -67,15 +75,24 @@ export default function App() {
         lng,
         lat,
         config,
-        score
+        score,
+        hintsShown
       );
       setResult(res);
       setScore(newScore);
       setClickedLngLat([lng, lat]);
       setPhase('feedback');
     },
-    [phase, currentQuestion, config, score]
+    [phase, currentQuestion, config, score, hintsShown]
   );
+
+  const handleRevealHint = useCallback(() => {
+    if (!config.hintsEnabled || hintsRemaining <= 0) return;
+    if (hintsShown >= config.hintsPerQuestion) return;
+    setHintsShown((n) => n + 1);
+    setHintsRemaining((n) => n - 1);
+    setScore((s) => ({ ...s, hintsUsed: s.hintsUsed + 1 }));
+  }, [config.hintsEnabled, config.hintsPerQuestion, hintsRemaining, hintsShown]);
 
   const handleNext = useCallback(() => {
     const next = currentIndex + 1;
@@ -90,6 +107,7 @@ export default function App() {
     setCurrentIndex(next);
     setResult(null);
     setClickedLngLat(null);
+    setHintsShown(0);
     setPhase('playing');
   }, [currentIndex, questions.length, config.questionCount, entities]);
 
@@ -106,11 +124,10 @@ export default function App() {
     setResult(null);
     setClickedLngLat(null);
     setLoadError(null);
+    setHintsShown(0);
   }, []);
 
-  // No mostrar geometrías de respuesta mientras se juega (evita spoilear ríos/países).
-  // Solo se pinta la entidad correcta en la fase de feedback (highlightedEntity).
-  const mapEntities = useMemo(() => [], []);
+  const mapEntities = useMemo(() => entities, [entities]);
 
   return (
     <div className="h-full w-full relative bg-slate-100">
@@ -142,9 +159,6 @@ export default function App() {
               <div className="animate-pulse text-slate-600 font-medium">
                 Cargando datos geográficos…
               </div>
-              <p className="text-xs text-slate-400 mt-2">
-                Países y capitales de Natural Earth 50m
-              </p>
             </div>
           )}
 
@@ -154,8 +168,12 @@ export default function App() {
                 question={currentQuestion}
                 result={result}
                 score={score}
+                config={config}
                 questionIndex={currentIndex}
                 totalQuestions={config.questionCount}
+                hintsShown={hintsShown}
+                hintsRemaining={hintsRemaining}
+                onRevealHint={handleRevealHint}
                 onNext={handleNext}
                 onQuit={handleQuit}
               />
@@ -165,6 +183,7 @@ export default function App() {
           {phase === 'summary' && (
             <SummaryPanel
               score={score}
+              config={config}
               onRestart={handleRestart}
               onNewConfig={handleNewConfig}
             />

@@ -1,4 +1,4 @@
-import { THEMES, type ThemeId, type GameConfig } from '../types/geo';
+import { THEMES, type ThemeId, type GameConfig, type ScoreMode } from '../types/geo';
 
 interface SetupPanelProps {
   config: GameConfig;
@@ -17,17 +17,17 @@ export function SetupPanel({ config, onChange, onStart }: SetupPanelProps) {
   const canStart = config.themes.length > 0;
 
   return (
-    <div className="bg-white/95 backdrop-blur rounded-xl shadow-lg p-6 max-w-md w-full space-y-6">
+    <div className="bg-white/95 backdrop-blur rounded-xl shadow-lg p-6 max-w-md w-full space-y-5 max-h-[90vh] overflow-y-auto custom-scroll">
       <div>
         <h1 className="text-2xl font-bold text-slate-800">GeoChallenge</h1>
         <p className="text-slate-500 text-sm mt-1">
-          Elige temáticas y dificultad, luego señala el lugar en el mapa.
+          Elige temáticas, modo de juego y opciones, luego señala el lugar en el mapa.
         </p>
       </div>
 
       {/* Temáticas */}
       <div>
-        <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-3">
+        <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-2">
           Temáticas
         </h2>
         <div className="grid grid-cols-1 gap-2">
@@ -39,7 +39,7 @@ export function SetupPanel({ config, onChange, onStart }: SetupPanelProps) {
                 key={id}
                 type="button"
                 onClick={() => toggleTheme(id)}
-                className={`flex items-start gap-3 p-3 rounded-lg border text-left transition ${
+                className={`flex items-start gap-3 p-2.5 rounded-lg border text-left transition ${
                   selected
                     ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-200'
                     : 'border-slate-200 hover:border-slate-300 bg-white'
@@ -51,7 +51,7 @@ export function SetupPanel({ config, onChange, onStart }: SetupPanelProps) {
                   }`}
                 />
                 <div>
-                  <div className="font-medium text-slate-800">{t.label}</div>
+                  <div className="font-medium text-slate-800 text-sm">{t.label}</div>
                   <div className="text-xs text-slate-500">{t.description}</div>
                 </div>
               </button>
@@ -60,9 +60,46 @@ export function SetupPanel({ config, onChange, onStart }: SetupPanelProps) {
         </div>
       </div>
 
+      {/* Modo de puntuación */}
+      <div>
+        <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-2">
+          Modo de juego
+        </h2>
+        <div className="flex gap-2">
+          {(
+            [
+              {
+                id: 'precise' as ScoreMode,
+                label: 'Preciso',
+                desc: 'Acierto solo si clicas muy cerca',
+              },
+              {
+                id: 'distance' as ScoreMode,
+                label: 'Distancia',
+                desc: 'Más puntos cuanto más cerca',
+              },
+            ] as const
+          ).map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => onChange({ ...config, scoreMode: m.id })}
+              className={`flex-1 p-2.5 rounded-lg border text-left transition ${
+                config.scoreMode === m.id
+                  ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-200'
+                  : 'border-slate-200 hover:border-slate-300 bg-white'
+              }`}
+            >
+              <div className="font-medium text-slate-800 text-sm">{m.label}</div>
+              <div className="text-xs text-slate-500">{m.desc}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Dificultad */}
       <div>
-        <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-3">
+        <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-2">
           Dificultad: {config.difficulty}
         </h2>
         <input
@@ -81,9 +118,9 @@ export function SetupPanel({ config, onChange, onStart }: SetupPanelProps) {
         </div>
       </div>
 
-      {/* Número de preguntas */}
+      {/* Preguntas */}
       <div>
-        <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-3">
+        <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-2">
           Preguntas por ronda
         </h2>
         <div className="flex gap-2 flex-wrap">
@@ -102,6 +139,75 @@ export function SetupPanel({ config, onChange, onStart }: SetupPanelProps) {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Pistas */}
+      <div>
+        <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-2">
+          Pistas
+        </h2>
+        <div className="flex gap-2 mb-3">
+          <button
+            type="button"
+            onClick={() => onChange({ ...config, hintsEnabled: false })}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+              !config.hintsEnabled
+                ? 'bg-slate-800 text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            No
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange({ ...config, hintsEnabled: true })}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+              config.hintsEnabled
+                ? 'bg-slate-800 text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            Sí
+          </button>
+        </div>
+        {config.hintsEnabled && (
+          <div className="space-y-3 pl-1 border-l-2 border-slate-200 ml-1">
+            <div>
+              <div className="text-xs text-slate-500 mb-1">Pistas por pregunta</div>
+              <div className="flex gap-2">
+                {([1, 2, 3] as const).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => onChange({ ...config, hintsPerQuestion: n })}
+                    className={`px-3 py-1 rounded-full text-sm ${
+                      config.hintsPerQuestion === n
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-500 mb-1">
+                Presupuesto total en la ronda: {config.hintsTotal}
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={30}
+                value={config.hintsTotal}
+                onChange={(e) =>
+                  onChange({ ...config, hintsTotal: Number(e.target.value) })
+                }
+                className="w-full accent-amber-500"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <button

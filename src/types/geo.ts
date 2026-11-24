@@ -1,4 +1,4 @@
-import type { Feature, FeatureCollection, Geometry, Point, Polygon, MultiPolygon, LineString, MultiLineString } from 'geojson';
+import type { Geometry } from 'geojson';
 
 /** Temáticas disponibles en el juego */
 export type ThemeId =
@@ -6,16 +6,18 @@ export type ThemeId =
   | 'capitals'
   | 'provinces'
   | 'rivers'
-  | 'geo_features'; // accidentes + montañas
+  | 'geo_features';
+
+/** Modo de evaluación / puntuación */
+export type ScoreMode = 'precise' | 'distance';
 
 export interface ThemeConfig {
   id: ThemeId;
   label: string;
   description: string;
   geometryTypes: Array<'Polygon' | 'MultiPolygon' | 'Point' | 'LineString' | 'MultiLineString'>;
-  /** Radio de tolerancia en km para Point/LineString (ajustable por dificultad) */
+  /** Radio de tolerancia en km para Point/LineString (modo preciso) */
   defaultToleranceKm: number;
-  /** Color de highlight en el mapa */
   highlightColor: string;
 }
 
@@ -25,7 +27,7 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
     label: 'Países',
     description: 'Localiza países del mundo',
     geometryTypes: ['Polygon', 'MultiPolygon'],
-    defaultToleranceKm: 0, // dentro del polígono
+    defaultToleranceKm: 0,
     highlightColor: '#3b82f6',
   },
   capitals: {
@@ -62,42 +64,48 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
   },
 };
 
-/** Entidad normalizada del juego (independiente de las propiedades del JSON original) */
 export interface GeoEntity {
   id: string;
   name: string;
   theme: ThemeId;
-  /** Nombre alternativo o local */
   nameAlt?: string;
-  /** Subtipo: "country", "capital", "river", "peak", "gulf", etc. */
   subtype?: string;
-  /** Código ISO o identificador externo */
   code?: string;
   geometry: Geometry;
-  /** Propiedades originales (para depuración / info extra) */
   rawProperties?: Record<string, unknown>;
 }
 
 export type GeoEntityCollection = GeoEntity[];
 
-/** Estado de una partida */
 export interface GameConfig {
   themes: ThemeId[];
   difficulty: 1 | 2 | 3 | 4 | 5;
-  questionCount: number; // 0 = modo infinito
+  questionCount: number; // 0 = infinito
+  /** precise = acierto/fallo por tolerancia; distance = puntos según km */
+  scoreMode: ScoreMode;
+  /** Activar sistema de pistas */
+  hintsEnabled: boolean;
+  /** Máximo de pistas usables por pregunta (1–3) */
+  hintsPerQuestion: 1 | 2 | 3;
+  /** Presupuesto total de pistas en la ronda */
+  hintsTotal: number;
 }
 
 export interface Question {
   id: string;
   entity: GeoEntity;
-  prompt: string; // "Señala en el mapa: Francia"
+  prompt: string;
+  /** Pistas pregeneradas (de menos a más reveladoras) */
+  hints: string[];
 }
 
 export interface AnswerResult {
   correct: boolean;
   distanceKm?: number;
+  pointsEarned: number;
   clickedLngLat: [number, number];
   entity: GeoEntity;
+  scoreMode: ScoreMode;
 }
 
 export interface GameScore {
@@ -106,18 +114,27 @@ export interface GameScore {
   streak: number;
   maxStreak: number;
   points: number;
+  hintsUsed: number;
 }
 
-/** Mapeo configurable de propiedades JSON → campos normalizados */
+/** Fila de ranking (API / D1) */
+export interface ScoreRow {
+  id?: number;
+  created_at: string;
+  username: string;
+  game_mode: ScoreMode;
+  difficulty: number;
+  themes: string;
+  score: number;
+  correct: number;
+  total: number;
+  hints_used: number;
+}
+
 export interface PropertyMapping {
-  /** Campo(s) posibles para el nombre principal */
   nameFields: string[];
-  /** Campo(s) para nombre alternativo */
   nameAltFields?: string[];
-  /** Campo(s) para código / ISO */
   codeFields?: string[];
-  /** Campo(s) para subtipo / featurecla / type */
   subtypeFields?: string[];
-  /** Filtro opcional: solo incluir features donde esta propiedad tenga estos valores */
   filter?: { field: string; values: string[] };
 }

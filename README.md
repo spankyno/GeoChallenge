@@ -1,13 +1,6 @@
 # GeoChallenge
 
-Juego de geografía interactivo sobre un mapa. Elige temáticas (países, capitales, etc.), dificultad y señala el lugar haciendo clic.
-
-## Stack
-
-- React + TypeScript + Vite
-- MapLibre GL JS
-- Tailwind CSS
-- Datos: Natural Earth 50m (GeoJSON)
+Juego de geografía interactivo sobre un mapa (React + Vite + MapLibre).
 
 ## Desarrollo local
 
@@ -16,44 +9,68 @@ npm install
 npm run dev
 ```
 
-## Despliegue en Cloudflare Pages
+## Modos de juego
 
-1. Sube este repositorio a GitHub.
-2. En Cloudflare Pages → Create project → Connect to Git → selecciona el repo.
-3. Configuración de build:
+| Modo | Descripción |
+|------|-------------|
+| **Preciso** | Solo cuenta acierto si clicas dentro de la tolerancia (más estricta con la dificultad) |
+| **Distancia** | Siempre suma puntos según los km de error; se muestra la distancia real |
 
-| Setting                  | Valor           |
-|--------------------------|-----------------|
-| Framework preset         | Vite            |
-| Build command            | `npm run build` |
-| Build output directory   | `dist`          |
-| Node version             | 18 o 20         |
+### Pistas
+- Activables en el setup (Sí/No)
+- Máximo 1–3 pistas por pregunta
+- Presupuesto total de pistas en la ronda
+- Cada pista usada reduce ligeramente los puntos de esa pregunta
 
-4. Deploy. Listo.
+## Ranking (Cloudflare D1)
 
-Los archivos GeoJSON de países y capitales ya están en `public/data/` y se sirven como estáticos.
+Campos: Fecha/Hora, Usuario, Modo, Dificultad, Puntuación (también correctas/total y pistas).
+
+Usuario por defecto: **Anónimo** (auth más adelante).
+
+### Configurar D1
+
+1. Crea la base:
+   ```bash
+   npx wrangler d1 create geo-challenge-db
+   ```
+2. Copia el `database_id` a `wrangler.toml`.
+3. Aplica el esquema:
+   ```bash
+   npx wrangler d1 execute geo-challenge-db --remote --file=./migrations/0001_scores.sql
+   ```
+4. En **Cloudflare Pages → Settings → Functions → D1 bindings**:
+   - Variable name: `DB`
+   - D1 database: `geo-challenge-db`
+
+API:
+- `GET /api/scores?limit=20`
+- `POST /api/scores` — body JSON con score, game_mode, difficulty, themes, username…
+
+## Despliegue Cloudflare Pages
+
+| Setting | Valor |
+|---------|--------|
+| Framework | Vite |
+| Build command | `npm run build` |
+| Output directory | `dist` |
+| Node | 18 o 20 |
+
+## Temáticas (Natural Earth 50m)
+
+| Temática | Datos |
+|----------|--------|
+| Países | ~242 |
+| Capitales | ~215 |
+| Provincias | ~294 |
+| Ríos | ~350 |
+| Accidentes | ~765 |
 
 ## Estructura
 
 ```
-src/
-  components/   MapView, SetupPanel, QuestionPanel, SummaryPanel
-  data/         adapter, loader, mockData
-  game/         engine, geometry
-  types/        geo.ts
-public/
-  data/         ne_50m_admin_0_countries.geojson
-                ne_50m_populated_places.geojson
+src/          UI + motor de juego
+functions/    Pages Functions (API scores)
+migrations/   SQL D1
+public/data/  GeoJSON
 ```
-
-## Temáticas
-
-| Temática   | Datos                          |
-|------------|--------------------------------|
-| Países     | Natural Earth 50m (242)        |
-| Capitales  | Natural Earth 50m (~215)       |
-| Provincias | Mock (ampliable)               |
-| Ríos       | Natural Earth 50m (~350)       |
-| Accidentes | Mock (ampliable)               |
-
-Para añadir más capas: coloca el GeoJSON en `public/data/`, registra la ruta en `src/data/loader.ts` y ajusta el mapping en `src/data/adapter.ts` si hace falta.

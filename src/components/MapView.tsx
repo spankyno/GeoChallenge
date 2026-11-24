@@ -139,7 +139,8 @@ export function MapView({
         source: 'highlight',
         paint: {
           'line-color': '#16a34a',
-          'line-width': 3,
+          'line-width': 5,
+          'line-opacity': 1,
         },
       });
       map.addLayer({
@@ -196,14 +197,22 @@ export function MapView({
     };
   }, []);
 
-  // Actualizar entidades en el mapa
+  // Actualizar entidades en el mapa (todos los ríos / países / etc.)
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map) return;
 
-    const source = map.getSource('entities') as maplibregl.GeoJSONSource | undefined;
-    if (source) {
-      source.setData(toFeatureCollection(entities) as any);
+    const apply = () => {
+      const source = map.getSource('entities') as maplibregl.GeoJSONSource | undefined;
+      if (source) {
+        source.setData(toFeatureCollection(entities) as any);
+      }
+    };
+
+    if (map.isStyleLoaded()) {
+      apply();
+    } else {
+      map.once('load', apply);
     }
   }, [entities]);
 
