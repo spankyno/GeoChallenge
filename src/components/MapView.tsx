@@ -13,19 +13,22 @@ interface MapViewProps {
   interactive: boolean; // false mientras se muestra feedback
 }
 
-/** Mapa base mudo (sin nombres de países, ciudades ni leyendas) */
-const BASE_STYLE = {
+/**
+ * Mapa base mudo, sin API key.
+ * Esri World Light Gray Base — costas y relieve suave, sin nombres de países.
+ * (Orden de tiles Esri: {z}/{y}/{x})
+ */
+const MUTE_BASE_STYLE = {
   version: 8 as const,
   sources: {
     basemap: {
       type: 'raster' as const,
       tiles: [
-        'https://a.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png',
-        'https://b.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png',
-        'https://c.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png',
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
       ],
       tileSize: 256,
-      attribution: '© OpenStreetMap © CARTO',
+      attribution: 'Tiles © Esri',
+      maxzoom: 16,
     },
   },
   layers: [
@@ -34,7 +37,7 @@ const BASE_STYLE = {
       type: 'raster' as const,
       source: 'basemap',
       minzoom: 0,
-      maxzoom: 19,
+      maxzoom: 16,
     },
   ],
 };
@@ -59,10 +62,9 @@ export function MapView({
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: BASE_STYLE as any,
+      style: MUTE_BASE_STYLE as any,
       center: [0, 30],
       zoom: 2,
-      // attributionControl por defecto activo (tipos de maplibre no aceptan `true`)
     });
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
