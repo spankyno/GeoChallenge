@@ -11,8 +11,11 @@ interface MapViewProps {
   clickedLngLat?: [number, number] | null;
   onMapClick: (lng: number, lat: number) => void;
   interactive: boolean; // false mientras se muestra feedback
+  /** Cambia al empezar partida / siguiente pregunta → restablece zoom mundial */
+  viewResetKey?: string | number;
 }
 
+const WORLD_VIEW = { center: [0, 20] as [number, number], zoom: 1.8 };
 /**
  * Mapa base mudo, sin API key.
  * Esri World Light Gray Base — costas y relieve suave, sin nombres de países.
@@ -48,6 +51,7 @@ export function MapView({
   clickedLngLat,
   onMapClick,
   interactive,
+  viewResetKey = 0,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -223,7 +227,7 @@ export function MapView({
     }
   }, [entities]);
 
-  // Highlight de la respuesta correcta + restaurar vista mundial en nueva pregunta
+  // Highlight de la respuesta correcta
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
@@ -242,17 +246,21 @@ export function MapView({
           },
         ],
       });
-      // Zoom a la respuesta
       const center = getEntityCenter(highlightedEntity.geometry);
       map.flyTo({ center, zoom: Math.max(map.getZoom(), 4), duration: 800 });
     } else {
       source.setData({ type: 'FeatureCollection', features: [] });
-      // Nueva pregunta / sin highlight: volver a la extensión mundial
-      if (interactive) {
-        map.flyTo({ center: [0, 20], zoom: 2, duration: 700 });
-      }
     }
-  }, [highlightedEntity, interactive]);
+  }, [highlightedEntity]);
+
+  // Extensión mundial al empezar partida y entre preguntas
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    if (!interactive || highlightedEntity) return;
+    map.stop();
+    map.flyTo({ ...WORLD_VIEW, duration: 600 });
+  }, [viewResetKey, interactive, highlightedEntity]);
 
   // Marcador del clic del usuario
   useEffect(() => {
