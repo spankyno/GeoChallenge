@@ -1,6 +1,5 @@
 /**
  * Cliente API de puntuaciones (Cloudflare Pages Function + D1).
- * Si la API no está disponible, falla en silencio (juego sigue funcionando).
  */
 
 import type { GameConfig, GameScore, ScoreRow } from '../types/geo';
@@ -14,6 +13,7 @@ export interface SubmitScorePayload {
   correct: number;
   total: number;
   hints_used: number;
+  clerk_user_id?: string;
 }
 
 export async function submitScore(payload: SubmitScorePayload): Promise<boolean> {
@@ -30,6 +30,7 @@ export async function submitScore(payload: SubmitScorePayload): Promise<boolean>
         correct: payload.correct,
         total: payload.total,
         hints_used: payload.hints_used,
+        clerk_user_id: payload.clerk_user_id || null,
       }),
     });
     return res.ok;
@@ -39,14 +40,10 @@ export async function submitScore(payload: SubmitScorePayload): Promise<boolean>
 }
 
 export async function fetchLeaderboard(limit = 20): Promise<ScoreRow[]> {
-  try {
-    const res = await fetch(`/api/scores?limit=${limit}`);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data) ? data : data.scores ?? [];
-  } catch {
-    return [];
-  }
+  const res = await fetch(`/api/scores?limit=${limit}`);
+  if (!res.ok) throw new Error(`scores ${res.status}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data : data.scores ?? [];
 }
 
 export function scorePayloadFromGame(

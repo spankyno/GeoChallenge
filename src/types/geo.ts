@@ -129,6 +129,7 @@ export interface ScoreRow {
   correct: number;
   total: number;
   hints_used: number;
+  clerk_user_id?: string | null;
 }
 
 export interface PropertyMapping {

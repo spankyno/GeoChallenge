@@ -6,35 +6,71 @@ import { fetchLeaderboard, scorePayloadFromGame, submitScore } from '../api/scor
 interface SummaryPanelProps {
   score: GameScore;
   config: GameConfig;
+  isSignedIn: boolean;
+  clerkUserId: string | null;
+  defaultDisplayName: string | null;
   onRestart: () => void;
   onNewConfig: () => void;
 }
 
-export function SummaryPanel({ score, config, onRestart, onNewConfig }: SummaryPanelProps) {
+export function SummaryPanel({
+  score,
+  config,
+  isSignedIn,
+  clerkUserId,
+  defaultDisplayName,
+  onRestart,
+  onNewConfig,
+}: SummaryPanelProps) {
   const accuracy =
     score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0;
-  const [username, setUsername] = useState('Anónimo');
+
+  const [username, setUsername] = useState(
+    isSignedIn ? defaultDisplayName || 'Jugador' : 'Anónimo'
+  );
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [board, setBoard] = useState<ScoreRow[]>([]);
-  const [boardError, setBoardError] = useState(false);
+  const [boardStatus, setBoardStatus] = useState<'loading' | 'ok' | 'empty' | 'error'>('loading');
 
   useEffect(() => {
-    fetchLeaderboard(15).then((rows) => {
-      setBoard(rows);
-      if (rows.length === 0) setBoardError(true);
-    });
+    setUsername(isSignedIn ? defaultDisplayName || 'Jugador' : 'Anónimo');
+  }, [isSignedIn, defaultDisplayName]);
+
+  const loadBoard = () => {
+    setBoardStatus('loading');
+    fetchLeaderboard(15)
+      .then((rows) => {
+        setBoard(rows);
+        setBoardStatus(rows.length > 0 ? 'ok' : 'empty');
+      })
+      .catch(() => setBoardStatus('error'));
+  };
+
+  useEffect(() => {
+    loadBoard();
   }, [saved]);
 
   const handleSave = async () => {
     setSaving(true);
-    const ok = await submitScore(scorePayloadFromGame(config, score, username));
+    setSaveError(null);
+    const name = isSignedIn
+      ? username.trim().slice(0, 40) || defaultDisplayName || 'Jugador'
+      : 'Anónimo';
+
+    const ok = await submitScore({
+      ...scorePayloadFromGame(config, score, name),
+      clerk_user_id: isSignedIn ? clerkUserId ?? undefined : undefined,
+    });
     setSaving(false);
     if (ok) {
       setSaved(true);
-      setBoardError(false);
+      loadBoard();
     } else {
-      setBoardError(true);
+      setSaveError(
+        'No se pudo guardar. Comprueba el binding D1 (variable DB) y la migración en Cloudflare.'
+      );
     }
   };
 
@@ -74,17 +110,25 @@ export function SummaryPanel({ score, config, onRestart, onNewConfig }: SummaryP
         {config.hintsEnabled && <div>Pistas usadas: {score.hintsUsed}</div>}
       </div>
 
+      {/* Guardar ranking */}
       <div className="border border-slate-200 rounded-lg p-3 space-y-2">
         <div className="text-sm font-medium text-slate-700">Guardar en ranking</div>
-        <input
-          type="text"
-          maxLength={40}
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          disabled={saved}
-          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-          placeholder="Nombre (Anónimo)"
-        />
+        {isSignedIn ? (
+          <input
+            type="text"
+            maxLength={40}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            disabled={saved}
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            placeholder="Tu nombre en el ranking"
+          />
+        ) : (
+          <p className="text-xs text-slate-500">
+            Juegas como <strong>Anónimo</strong>. Regístrate para elegir un nombre y partidas
+            ilimitadas.
+          </p>
+        )}
         <button
           type="button"
           disabled={saved || saving}
@@ -97,16 +141,36 @@ export function SummaryPanel({ score, config, onRestart, onNewConfig }: SummaryP
         >
           {saved ? '✓ Guardado' : saving ? 'Guardando…' : 'Guardar puntuación'}
         </button>
-        {boardError && !saved && (
-          <p className="text-xs text-slate-400">
-            Ranking no disponible aún (configura D1 en Cloudflare). La partida local no se pierde.
-          </p>
-        )}
+        {saveError && <p className="text-xs text-red-600">{saveError}</p>}
       </div>
 
-      {board.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-slate-600 mb-2">Ranking</h3>
+      {/* Leaderboard + estado D1 */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold text-slate-600">Ranking</h3>
+          <button
+            type="button"
+            onClick={loadBoard}
+            className="text-xs text-blue-600 hover:underline"
+          >
+            Actualizar
+          </button>
+        </div>
+        {boardStatus === 'loading' && (
+          <p className="text-xs text-slate-400">Cargando ranking…</p>
+        )}
+        {boardStatus === 'error' && (
+          <p className="text-xs text-red-600">
+            Error al contactar /api/scores (D1 o Function).
+          </p>
+        )}
+        {boardStatus === 'empty' && (
+          <p className="text-xs text-slate-400">
+            Ranking vacío o D1 sin datos. Si acabas de configurar la BD, guarda una
+            puntuación de prueba.
+          </p>
+        )}
+        {boardStatus === 'ok' && (
           <div className="text-xs max-h-40 overflow-y-auto custom-scroll border border-slate-100 rounded-lg">
             <table className="w-full">
               <thead className="bg-slate-50 sticky top-0">
@@ -131,8 +195,8 @@ export function SummaryPanel({ score, config, onRestart, onNewConfig }: SummaryP
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="flex flex-col gap-2">
         <button
