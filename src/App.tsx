@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useUser } from '@clerk/react';
 import { MapView } from './components/MapView';
 import { SetupPanel } from './components/SetupPanel';
 import { QuestionPanel } from './components/QuestionPanel';

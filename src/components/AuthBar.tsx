@@ -1,11 +1,10 @@
 import {
-  SignedIn,
-  SignedOut,
+  Show,
   SignInButton,
   SignUpButton,
   UserButton,
   useUser,
-} from '@clerk/clerk-react';
+} from '@clerk/react';
 import { ANON_DAILY_LIMIT, getAnonymousPlaysRemaining } from '../lib/playLimit';
 import { useEffect, useState } from 'react';
 
@@ -18,7 +17,6 @@ export function AuthBar() {
     if (!isSignedIn) setRemaining(getAnonymousPlaysRemaining());
   }, [isSignedIn]);
 
-  // Refresco al volver a la pestaña
   useEffect(() => {
     const onFocus = () => {
       if (!isSignedIn) setRemaining(getAnonymousPlaysRemaining());
@@ -29,7 +27,7 @@ export function AuthBar() {
 
   return (
     <div className="pointer-events-auto absolute top-3 right-3 z-20 flex items-center gap-2">
-      <SignedOut>
+      <Show when="signed-out">
         <div className="hidden sm:block text-xs text-slate-600 bg-white/90 backdrop-blur rounded-lg px-2 py-1 shadow border border-slate-200">
           Invitado · {remaining}/{ANON_DAILY_LIMIT} partidas hoy
         </div>
@@ -49,13 +47,13 @@ export function AuthBar() {
             Registro
           </button>
         </SignUpButton>
-      </SignedOut>
-      <SignedIn>
+      </Show>
+      <Show when="signed-in">
         <div className="hidden sm:block text-xs text-slate-600 bg-white/90 backdrop-blur rounded-lg px-2 py-1 shadow border border-slate-200">
           {user?.firstName || user?.username || 'Jugador'} · ilimitado
         </div>
-        <UserButton afterSignOutUrl="/" />
-      </SignedIn>
+        <UserButton />
+      </Show>
     </div>
   );
 }
