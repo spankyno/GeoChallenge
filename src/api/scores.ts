@@ -16,7 +16,17 @@ export interface SubmitScorePayload {
   clerk_user_id?: string;
 }
 
-export async function submitScore(payload: SubmitScorePayload): Promise<boolean> {
+export interface SubmitScoreResult {
+  ok: boolean;
+  inTop100?: boolean;
+  rejected?: boolean;
+  rank?: number;
+  message?: string;
+  threshold?: number;
+  id?: number;
+}
+
+export async function submitScore(payload: SubmitScorePayload): Promise<SubmitScoreResult> {
   try {
     const res = await fetch('/api/scores', {
       method: 'POST',
@@ -33,14 +43,16 @@ export async function submitScore(payload: SubmitScorePayload): Promise<boolean>
         clerk_user_id: payload.clerk_user_id || null,
       }),
     });
-    return res.ok;
+    if (!res.ok) return { ok: false, message: `HTTP ${res.status}` };
+    const data = (await res.json()) as SubmitScoreResult;
+    return data;
   } catch {
-    return false;
+    return { ok: false, message: 'Network error' };
   }
 }
 
-export async function fetchLeaderboard(limit = 20): Promise<ScoreRow[]> {
-  const res = await fetch(`/api/scores?limit=${limit}`);
+export async function fetchLeaderboard(limit = 100): Promise<ScoreRow[]> {
+  const res = await fetch(`/api/scores?limit=${Math.min(limit, 100)}`);
   if (!res.ok) throw new Error(`scores ${res.status}`);
   const data = await res.json();
   return Array.isArray(data) ? data : data.scores ?? [];
@@ -59,6 +71,6 @@ export function scorePayloadFromGame(
     score: score.points,
     correct: score.correct,
     total: score.total,
-    hints_used: 0, // pistas eliminadas; columna D1 conservada
+    hints_used: 0,
   };
 }

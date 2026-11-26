@@ -5,6 +5,8 @@ import { SetupPanel } from './components/SetupPanel';
 import { QuestionPanel } from './components/QuestionPanel';
 import { SummaryPanel } from './components/SummaryPanel';
 import { AuthBar, AuthBarDisabled } from './components/AuthBar';
+import { Confetti } from './components/Confetti';
+import { LeaderboardModal } from './components/LeaderboardModal';
 import type { GameConfig, Question, AnswerResult, GameScore, GeoEntity } from './types/geo';
 import {
   createInitialScore,
@@ -68,6 +70,8 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
   const [clickedLngLat, setClickedLngLat] = useState<[number, number] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [mapResetToken, setMapResetToken] = useState(0);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [limitMsg, setLimitMsg] = useState<string | null>(null);
 
   const currentQuestion = questions[currentIndex] ?? null;
@@ -131,6 +135,7 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
       setResult(res);
       setScore(newScore);
       setClickedLngLat([lng, lat]);
+      setShowConfetti(!!res.correct);
       setPhase('feedback');
     },
 [phase, currentQuestion, config, score]
@@ -150,11 +155,13 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
     setCurrentIndex(next);
     setResult(null);
     setClickedLngLat(null);
+    setShowConfetti(false);
     setMapResetToken((n) => n + 1);
     setPhase('playing');
   }, [currentIndex, questions, config.questionCount, entities]);
 
   const handleQuit = useCallback(() => {
+    setShowConfetti(false);
     setPhase('summary');
   }, []);
 
@@ -184,6 +191,7 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
           entities={mapEntities}
           highlightedEntity={result?.entity ?? null}
           clickedLngLat={clickedLngLat}
+          wasCorrect={result ? result.correct : null}
           onMapClick={handleMapClick}
           interactive={phase === 'playing'}
           viewResetKey={mapResetToken}
@@ -191,6 +199,8 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
       </div>
 
       {HAS_CLERK ? <AuthBar /> : <AuthBarDisabled />}
+      <Confetti active={showConfetti} />
+      <LeaderboardModal open={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
 
       <div
         className={`absolute inset-0 pointer-events-none flex p-4 md:p-6 ${
@@ -201,6 +211,13 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
           {phase === 'setup' && (
             <div className="space-y-3">
               <SetupPanel config={config} onChange={setConfig} onStart={startGame} />
+              <button
+                type="button"
+                onClick={() => setShowLeaderboard(true)}
+                className="w-full max-w-md py-2 rounded-lg border border-slate-300 bg-white/90 text-slate-700 text-sm font-medium hover:bg-white shadow"
+              >
+                Ver ranking top 100
+              </button>
               {!isSignedIn && (
                 <p className="text-xs text-slate-500 text-center max-w-md">
                   Invitado: {getAnonymousPlaysRemaining()}/{ANON_DAILY_LIMIT} partidas

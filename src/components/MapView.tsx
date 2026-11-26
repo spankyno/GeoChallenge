@@ -9,6 +9,8 @@ interface MapViewProps {
   entities: GeoEntity[];
   highlightedEntity?: GeoEntity | null;
   clickedLngLat?: [number, number] | null;
+  /** true = acierto (confeti en App); false = fallo → destello del punto correcto */
+  wasCorrect?: boolean | null;
   onMapClick: (lng: number, lat: number) => void;
   interactive: boolean;
   /** Incrementar al inicio de partida y en cada "Siguiente" */
@@ -66,6 +68,12 @@ function ensureSources(map: maplibregl.Map) {
       data: { type: 'FeatureCollection', features: [] },
     });
   }
+  if (!map.getSource('answer-pulse')) {
+    map.addSource('answer-pulse', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    });
+  }
 
   const addIfMissing = (id: string, layer: maplibregl.AddLayerObject) => {
     if (!map.getLayer(id)) map.addLayer(layer);
@@ -109,13 +117,13 @@ function ensureSources(map: maplibregl.Map) {
     type: 'fill',
     source: 'highlight',
     filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
-    paint: { 'fill-color': '#22c55e', 'fill-opacity': 0.45 },
+    paint: { 'fill-color': '#22c55e', 'fill-opacity': 0.55 },
   });
   addIfMissing('highlight-line', {
     id: 'highlight-line',
     type: 'line',
     source: 'highlight',
-    paint: { 'line-color': '#16a34a', 'line-width': 5 },
+    paint: { 'line-color': '#16a34a', 'line-width': 6 },
   });
   addIfMissing('highlight-point', {
     id: 'highlight-point',
@@ -123,9 +131,9 @@ function ensureSources(map: maplibregl.Map) {
     source: 'highlight',
     filter: ['==', ['geometry-type'], 'Point'],
     paint: {
-      'circle-radius': 10,
+      'circle-radius': 12,
       'circle-color': '#22c55e',
-      'circle-stroke-width': 2,
+      'circle-stroke-width': 3,
       'circle-stroke-color': '#fff',
     },
   });
@@ -140,14 +148,41 @@ function ensureSources(map: maplibregl.Map) {
       'circle-stroke-color': '#fff',
     },
   });
+  // Anillo de destello en el punto correcto (fallos / zonas pequeñas)
+  addIfMissing('answer-pulse-outer', {
+    id: 'answer-pulse-outer',
+    type: 'circle',
+    source: 'answer-pulse',
+    paint: {
+      'circle-radius': 28,
+      'circle-color': '#ef4444',
+      'circle-opacity': 0.25,
+      'circle-stroke-width': 3,
+      'circle-stroke-color': '#ef4444',
+      'circle-stroke-opacity': 0.9,
+    },
+  });
+  addIfMissing('answer-pulse-inner', {
+    id: 'answer-pulse-inner',
+    type: 'circle',
+    source: 'answer-pulse',
+    paint: {
+      'circle-radius': 10,
+      'circle-color': '#ef4444',
+      'circle-stroke-width': 3,
+      'circle-stroke-color': '#fff',
+    },
+  });
 }
 
 function clearOverlays(map: maplibregl.Map) {
   const empty = { type: 'FeatureCollection' as const, features: [] };
   const h = map.getSource('highlight') as maplibregl.GeoJSONSource | undefined;
   const c = map.getSource('click-marker') as maplibregl.GeoJSONSource | undefined;
+  const p = map.getSource('answer-pulse') as maplibregl.GeoJSONSource | undefined;
   if (h) h.setData(empty);
   if (c) c.setData(empty);
+  if (p) p.setData(empty);
 }
 
 function goWorld(map: maplibregl.Map) {
@@ -198,6 +233,7 @@ export function MapView({
   entities,
   highlightedEntity,
   clickedLngLat,
+  wasCorrect = null,
   onMapClick,
   interactive,
   viewResetKey = 0,
@@ -286,6 +322,24 @@ export function MapView({
 
       const highlightSrc = map.getSource('highlight') as maplibregl.GeoJSONSource;
       const clickSrc = map.getSource('click-marker') as maplibregl.GeoJSONSource;
+      const pulseSrc = map.getSource('answer-pulse') as maplibregl.GeoJSONSource | undefined;
+
+      const answerCenter = getEntityCenter(highlightedEntity.geometry);
+      const isMiss = wasCorrect === false;
+      const accent = isMiss ? '#ef4444' : '#22c55e';
+
+      try {
+        if (map.getLayer('highlight-fill')) {
+          map.setPaintProperty('highlight-fill', 'fill-color', accent);
+        }
+        if (map.getLayer('highlight-line')) {
+          map.setPaintProperty('highlight-line', 'line-color', accent);
+          map.setPaintProperty('highlight-line', 'line-width', isMiss ? 7 : 6);
+        }
+        if (map.getLayer('highlight-point')) {
+          map.setPaintProperty('highlight-point', 'circle-color', accent);
+        }
+      } catch { /* */ }
 
       highlightSrc.setData({
         type: 'FeatureCollection',
@@ -309,8 +363,31 @@ export function MapView({
         ],
       });
 
-      const answerCenter = getEntityCenter(highlightedEntity.geometry);
-      // Esperar un frame para que setData pinte antes del zoom
+      // Destello en el centro de la respuesta (sobre todo si falló o es zona pequeña)
+      if (pulseSrc) {
+        pulseSrc.setData({
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              properties: {},
+              geometry: { type: 'Point', coordinates: answerCenter },
+            },
+          ],
+        });
+        const pulseColor = isMiss ? '#ef4444' : '#22c55e';
+        try {
+          if (map.getLayer('answer-pulse-outer')) {
+            map.setPaintProperty('answer-pulse-outer', 'circle-color', pulseColor);
+            map.setPaintProperty('answer-pulse-outer', 'circle-stroke-color', pulseColor);
+            map.setPaintProperty('answer-pulse-outer', 'circle-radius', isMiss ? 36 : 24);
+          }
+          if (map.getLayer('answer-pulse-inner')) {
+            map.setPaintProperty('answer-pulse-inner', 'circle-color', pulseColor);
+          }
+        } catch { /* */ }
+      }
+
       requestAnimationFrame(() => {
         fitClickAndAnswer(map, clickedLngLat, answerCenter);
       });
@@ -318,7 +395,7 @@ export function MapView({
 
     if (readyRef.current || map.isStyleLoaded()) run();
     else map.once('load', run);
-  }, [highlightedEntity, clickedLngLat]);
+  }, [highlightedEntity, clickedLngLat, wasCorrect]);
 
   // ── Cursor ─────────────────────────────────────────────────
   useEffect(() => {
