@@ -14,6 +14,7 @@ import {
   generateQuestions,
   processAnswer,
 } from './game/engine';
+import { getEntityCenter } from './game/geometry';
 import {
   canPlayAsAnonymous,
   recordAnonymousPlay,
@@ -153,6 +154,30 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
 [phase, currentQuestion, config, score]
   );
 
+
+  const handleTimeout = useCallback(() => {
+    if (phase !== 'playing' || !currentQuestion) return;
+    const center = getEntityCenter(currentQuestion.entity.geometry);
+    const newScore = {
+      ...score,
+      total: score.total + 1,
+      streak: 0,
+      timedOut: true,
+    };
+    setScore(newScore);
+    setResult({
+      correct: false,
+      pointsEarned: 0,
+      clickedLngLat: center,
+      entity: currentQuestion.entity,
+      scoreMode: config.scoreMode,
+    });
+    // Marcamos el centro de la respuesta para que el mapa resalte la geometría
+    setClickedLngLat(center);
+    setShowConfetti(false);
+    setPhase('feedback');
+  }, [phase, currentQuestion, score, config.scoreMode]);
+
   const handleNext = useCallback(() => {
     const next = currentIndex + 1;
     if (config.questionCount > 0 && next >= questions.length) {
@@ -268,6 +293,8 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
               config={config}
               questionIndex={currentIndex}
               totalQuestions={config.questionCount}
+              timerActive={phase === 'playing'}
+              onTimeout={handleTimeout}
               onNext={handleNext}
               onQuit={handleQuit}
             />

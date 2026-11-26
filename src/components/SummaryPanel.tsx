@@ -116,7 +116,12 @@ export function SummaryPanel({
 
         <div className="border border-slate-200 rounded-lg p-3 space-y-2">
           <div className="text-sm font-medium text-slate-700">Guardar en ranking (top 100)</div>
-          {isSignedIn ? (
+          {score.timedOut ? (
+            <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              No puedes guardar el récord: se agotó el tiempo en al menos una pregunta
+              (15&nbsp;s). Vuelve a jugar respondiendo a tiempo.
+            </p>
+          ) : isSignedIn ? (
             <input
               type="text"
               maxLength={40}
@@ -133,7 +138,7 @@ export function SummaryPanel({
           )}
           <button
             type="button"
-            disabled={saved || saving}
+            disabled={saved || saving || score.timedOut}
             onClick={handleSave}
             className={`w-full py-2 rounded-lg text-sm font-medium transition ${
               saved

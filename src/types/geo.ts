@@ -106,6 +106,8 @@ export interface GameScore {
   streak: number;
   maxStreak: number;
   points: number;
+  /** true si alguna pregunta se respondió tras el tiempo → no se puede guardar récord */
+  timedOut: boolean;
 }
 
 /** Fila de ranking (API / D1) */

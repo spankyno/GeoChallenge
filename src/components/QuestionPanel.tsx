@@ -1,5 +1,6 @@
 import type { Question, AnswerResult, GameScore, GameConfig } from '../types/geo';
 import { THEMES } from '../types/geo';
+import { QuestionTimer, QUESTION_TIME_SEC } from './QuestionTimer';
 
 interface QuestionPanelProps {
   question: Question | null;
@@ -8,6 +9,8 @@ interface QuestionPanelProps {
   config: GameConfig;
   questionIndex: number;
   totalQuestions: number;
+  timerActive: boolean;
+  onTimeout: () => void;
   onNext: () => void;
   onQuit: () => void;
 }
@@ -19,6 +22,8 @@ export function QuestionPanel({
   config,
   questionIndex,
   totalQuestions,
+  timerActive,
+  onTimeout,
   onNext,
   onQuit,
 }: QuestionPanelProps) {
@@ -28,27 +33,40 @@ export function QuestionPanel({
 
   return (
     <div className="bg-white/95 backdrop-blur rounded-xl shadow-lg p-4 max-w-sm w-full space-y-3">
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex gap-3 text-sm">
           <span className="font-semibold text-green-600">✓ {score.correct}</span>
           <span className="text-slate-500">
             {score.total > 0 ? `${Math.round((score.correct / score.total) * 100)}%` : '—'}
           </span>
           <span className="text-amber-600 font-medium">🔥 {score.streak}</span>
         </div>
-        <div className="text-slate-600 font-medium">{score.points} pts</div>
+        <div className="text-slate-600 font-medium text-sm">{score.points} pts</div>
       </div>
 
-      <div className="text-xs text-slate-400 flex justify-between">
-        <span>
-          {totalQuestions > 0
-            ? `Pregunta ${questionIndex + 1} / ${totalQuestions}`
-            : `Pregunta ${questionIndex + 1}`}
-        </span>
-        <span>
-          {config.scoreMode === 'precise' ? 'Modo preciso' : 'Modo distancia'}
-        </span>
+      {/* Temporizador 15s */}
+      <div className="flex items-center justify-between">
+        <QuestionTimer
+          active={timerActive && !result}
+          paused={!!result}
+          seconds={QUESTION_TIME_SEC}
+          onTimeout={onTimeout}
+        />
+        <div className="text-xs text-slate-400 text-right">
+          <div>
+            {totalQuestions > 0
+              ? `Pregunta ${questionIndex + 1} / ${totalQuestions}`
+              : `Pregunta ${questionIndex + 1}`}
+          </div>
+          <div>{config.scoreMode === 'precise' ? 'Modo preciso' : 'Modo distancia'}</div>
+        </div>
       </div>
+
+      {score.timedOut && (
+        <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
+          Tiempo agotado en al menos una pregunta: no podrás guardar el récord.
+        </div>
+      )}
 
       {!result && (
         <div className="py-1 space-y-2">
@@ -66,13 +84,15 @@ export function QuestionPanel({
           }`}
         >
           <div className="font-semibold text-lg">
-            {result.scoreMode === 'distance'
-              ? result.pointsEarned > 0
-                ? `+${result.pointsEarned} pts`
-                : '0 pts'
-              : result.correct
-                ? '¡Correcto!'
-                : 'Incorrecto'}
+            {result.distanceKm === undefined && !result.correct && result.pointsEarned === 0
+              ? '¡Tiempo agotado!'
+              : result.scoreMode === 'distance'
+                ? result.pointsEarned > 0
+                  ? `+${result.pointsEarned} pts`
+                  : '0 pts'
+                : result.correct
+                  ? '¡Correcto!'
+                  : 'Incorrecto'}
             {result.scoreMode === 'precise' && result.correct && result.pointsEarned > 0 && (
               <span className="text-sm font-normal text-slate-600 ml-2">
                 +{result.pointsEarned} pts

@@ -15,7 +15,7 @@ import { evaluateClick } from './geometry';
 export { loadEntitiesForThemes } from '../data/loader';
 
 export function createInitialScore(): GameScore {
-  return { correct: 0, total: 0, streak: 0, maxStreak: 0, points: 0 };
+  return { correct: 0, total: 0, streak: 0, maxStreak: 0, points: 0, timedOut: false };
 }
 
 function shuffle<T>(arr: T[]): T[] {
