@@ -11,5 +11,5 @@ pages_build_output_dir = "dist"
 [[d1_databases]]
 binding = "DB"
 database_name = "geo-challenge-db"
-database_id = "31486df7-39ea-4883-917c-c8b67aa48a0b"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
 migrations_dir = "migrations"

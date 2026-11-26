@@ -72,6 +72,7 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
   const [mapResetToken, setMapResetToken] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [countryOutlines, setCountryOutlines] = useState<GeoEntity[]>([]);
   const [limitMsg, setLimitMsg] = useState<string | null>(null);
 
   const currentQuestion = questions[currentIndex] ?? null;
@@ -98,6 +99,17 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
         setLoadError('No se encontraron entidades para las temáticas seleccionadas.');
         setPhase('setup');
         return;
+      }
+      // Capa auxiliar de países en modo ríos
+      if (config.themes.includes('rivers')) {
+        try {
+          const countries = await loadEntitiesForThemes(['countries']);
+          setCountryOutlines(countries);
+        } catch {
+          setCountryOutlines([]);
+        }
+      } else {
+        setCountryOutlines([]);
       }
       const qs = generateQuestions(loaded, config.questionCount);
       setEntities(loaded);
@@ -192,6 +204,9 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
           highlightedEntity={result?.entity ?? null}
           clickedLngLat={clickedLngLat}
           wasCorrect={result ? result.correct : null}
+          countryOutlines={
+            currentQuestion?.entity.theme === 'rivers' ? countryOutlines : []
+          }
           onMapClick={handleMapClick}
           interactive={phase === 'playing'}
           viewResetKey={mapResetToken}

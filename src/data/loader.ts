@@ -13,10 +13,11 @@ export const THEME_FILES: Partial<Record<ThemeId, string[]>> = {
   countries: ['/data/ne_50m_admin_0_countries.geojson'],
   capitals: ['/data/ne_50m_populated_places.geojson'],
   rivers: ['/data/ne_50m_rivers_lake_centerlines.geojson'],
-  provinces: ['/data/ne_50m_admin_1_states_provinces.geojson'],
+  // 10m: cobertura mundial (50m solo tenía ~9 países)
+  provinces: ['/data/ne_10m_admin_1_states_provinces.geojson'],
+  // Solo polígonos (desiertos, islas, mesetas…) + montañas (puntos de elevación)
   geo_features: [
     '/data/ne_50m_geography_regions_polys.geojson',
-    '/data/ne_50m_geography_regions_points.geojson',
     '/data/ne_50m_geography_regions_elevation_points.geojson',
   ],
 };

@@ -44,13 +44,23 @@ export const DEFAULT_MAPPINGS: Record<ThemeId, PropertyMapping> = {
     filter: { field: 'featurecla', values: ['River'] },
   },
   geo_features: {
-    // Polys usan NAME/NAME_ES/FEATURECLA; points usan name/name_es/featurecla
+    // Polys: NAME/FEATURECLA; elevación: name/featurecla (mountain…)
     nameFields: ['NAME_ES', 'name_es', 'NAME', 'name', 'NAME_EN', 'name_en'],
     nameAltFields: ['NAME_EN', 'name_en', 'NAMEALT', 'name_alt'],
     codeFields: ['NE_ID', 'ne_id', 'WIKIDATAID', 'wikidataid'],
     subtypeFields: ['FEATURECLA', 'featurecla'],
   },
 };
+
+/** Tipos de accidente geográfico que NO se usan como pregunta */
+const GEO_FEATURE_EXCLUDE = new Set([
+  'Continent',
+  'Geoarea',
+  'Coast',
+  'continent',
+  'geoarea',
+  'coast',
+]);
 
 /** Intenta obtener el primer valor no vacío de una lista de campos */
 function pickField(props: Record<string, unknown>, fields: string[]): string | undefined {
@@ -117,6 +127,17 @@ export function normalizeFeatureCollection(
     // Solo aceptamos tipos que el tema soporta (se puede relajar)
     const allowed = ['Polygon', 'MultiPolygon', 'Point', 'LineString', 'MultiLineString'];
     if (!allowed.includes(geometry.type)) return;
+
+    // Accidentes: excluir continentes / geoáreas genéricas
+    if (theme === 'geo_features') {
+      const sub = pickField(props, ['FEATURECLA', 'featurecla']) ?? '';
+      if (GEO_FEATURE_EXCLUDE.has(sub)) return;
+      // Solo montañas/depresiones en puntos de elevación; no otros puntos sueltos
+      if (geometry.type === 'Point') {
+        const okPoint = ['mountain', 'depression', 'pass', 'Mountain', 'Depression', 'Pass'];
+        if (!okPoint.includes(sub)) return;
+      }
+    }
 
     entities.push({
       id: makeId(theme, props, index, name),

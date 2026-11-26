@@ -11,6 +11,8 @@ interface MapViewProps {
   clickedLngLat?: [number, number] | null;
   /** true = acierto (confeti en App); false = fallo → destello del punto correcto */
   wasCorrect?: boolean | null;
+  /** Siluetas de países de fondo (p. ej. modo ríos) — no son clicables de pregunta */
+  countryOutlines?: GeoEntity[];
   onMapClick: (lng: number, lat: number) => void;
   interactive: boolean;
   /** Incrementar al inicio de partida y en cada "Siguiente" */
@@ -50,6 +52,12 @@ const MUTE_BASE_STYLE = {
 };
 
 function ensureSources(map: maplibregl.Map) {
+  if (!map.getSource('country-outlines')) {
+    map.addSource('country-outlines', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    });
+  }
   if (!map.getSource('entities')) {
     map.addSource('entities', {
       type: 'geojson',
@@ -79,6 +87,19 @@ function ensureSources(map: maplibregl.Map) {
     if (!map.getLayer(id)) map.addLayer(layer);
   };
 
+  // Siluetas de países (auxiliar, p. ej. detrás de ríos)
+  addIfMissing('country-outlines-fill', {
+    id: 'country-outlines-fill',
+    type: 'fill',
+    source: 'country-outlines',
+    paint: { 'fill-color': '#cbd5e1', 'fill-opacity': 0.35 },
+  });
+  addIfMissing('country-outlines-line', {
+    id: 'country-outlines-line',
+    type: 'line',
+    source: 'country-outlines',
+    paint: { 'line-color': '#64748b', 'line-width': 0.8, 'line-opacity': 0.7 },
+  });
   addIfMissing('entities-fill', {
     id: 'entities-fill',
     type: 'fill',
@@ -234,6 +255,7 @@ export function MapView({
   highlightedEntity,
   clickedLngLat,
   wasCorrect = null,
+  countryOutlines = [],
   onMapClick,
   interactive,
   viewResetKey = 0,
@@ -290,6 +312,19 @@ export function MapView({
     if (readyRef.current || map.isStyleLoaded()) apply();
     else map.once('load', apply);
   }, [entities]);
+
+  // ── Siluetas de países (modo ríos) ─────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const apply = () => {
+      ensureSources(map);
+      const src = map.getSource('country-outlines') as maplibregl.GeoJSONSource | undefined;
+      if (src) src.setData(toFeatureCollection(countryOutlines) as any);
+    };
+    if (readyRef.current || map.isStyleLoaded()) apply();
+    else map.once('load', apply);
+  }, [countryOutlines]);
 
   // ── Reset mundial (inicio / Siguiente) ─────────────────────
   useEffect(() => {
