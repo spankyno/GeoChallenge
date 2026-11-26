@@ -266,8 +266,7 @@ export function AboutPage({ onBack, onPrivacy }: AboutPageProps) {
               </p>
               <h2 className="text-2xl font-bold text-white">Aitor Sánchez Gutiérrez</h2>
               <p className="text-sm text-slate-400 mt-2 max-w-md">
-                Desarrollo web, datos y productos experimentales. GeoChallenge forma parte de su
-                portfolio público.
+                Desarrollo de aplicaciones web, herramientas online y blog.
               </p>
               <div className="flex flex-wrap gap-2 mt-4">
                 <a
