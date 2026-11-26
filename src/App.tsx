@@ -7,6 +7,9 @@ import { SummaryPanel } from './components/SummaryPanel';
 import { AuthBar, AuthBarDisabled } from './components/AuthBar';
 import { Confetti } from './components/Confetti';
 import { LeaderboardModal } from './components/LeaderboardModal';
+import { Footer } from './components/Footer';
+import { AboutPage } from './components/AboutPage';
+import { PrivacyPage } from './components/PrivacyPage';
 import type { GameConfig, Question, AnswerResult, GameScore, GeoEntity } from './types/geo';
 import {
   createInitialScore,
@@ -23,6 +26,7 @@ import {
 } from './lib/playLimit';
 
 type Phase = 'setup' | 'loading' | 'playing' | 'feedback' | 'summary';
+type Page = 'game' | 'about' | 'privacy';
 
 const HAS_CLERK = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 
@@ -73,6 +77,7 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
   const [mapResetToken, setMapResetToken] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [page, setPage] = useState<Page>('game');
   const [countryOutlines, setCountryOutlines] = useState<GeoEntity[]>([]);
   const [limitMsg, setLimitMsg] = useState<string | null>(null);
 
@@ -221,8 +226,25 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
 
   const isGamePanel = phase === 'playing' || phase === 'feedback';
 
+  if (page === 'about') {
+    return (
+      <div className="h-full w-full relative">
+        <AboutPage onBack={() => setPage('game')} onPrivacy={() => setPage('privacy')} />
+        <Footer onNavigate={(p) => setPage(p)} />
+      </div>
+    );
+  }
+  if (page === 'privacy') {
+    return (
+      <div className="h-full w-full relative">
+        <PrivacyPage onBack={() => setPage('about')} />
+        <Footer onNavigate={(p) => setPage(p)} />
+      </div>
+    );
+  }
+
   return (
-    <div className="h-full w-full relative bg-slate-100">
+    <div className="h-full w-full relative bg-slate-100 pb-12">
       <div className="absolute inset-0">
         <MapView
           entities={mapEntities}
@@ -241,6 +263,7 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
       {HAS_CLERK ? <AuthBar /> : <AuthBarDisabled />}
       <Confetti active={showConfetti} />
       <LeaderboardModal open={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
+      <Footer onNavigate={(p) => setPage(p)} />
 
       <div
         className={`absolute inset-0 pointer-events-none flex p-4 md:p-6 ${
