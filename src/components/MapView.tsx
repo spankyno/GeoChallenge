@@ -127,8 +127,8 @@ function ensureSources(map: maplibregl.Map) {
     source: 'entities',
     filter: ['==', ['geometry-type'], 'Point'],
     paint: {
-      'circle-radius': 5,
-      'circle-color': '#ef4444',
+      'circle-radius': 6,
+      'circle-color': '#64748b',
       'circle-stroke-width': 1.5,
       'circle-stroke-color': '#fff',
     },
