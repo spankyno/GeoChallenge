@@ -1,0 +1,15 @@
+# Cloudflare Pages + D1
+# 1. Crea una base D1 en el dashboard: wrangler d1 create geo-challenge-db
+# 2. Sustituye database_id por el ID real
+# 3. Aplica migraciones: wrangler d1 execute geo-challenge-db --file=./migrations/0001_scores.sql
+# 4. En Pages → Settings → Functions → D1 bindings: nombre "DB" → tu base
+
+name = "geo-challenge"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "geo-challenge-db"
+database_id = "31486df7-39ea-4883-917c-c8b67aa48a0b"
+migrations_dir = "migrations"
