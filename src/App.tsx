@@ -230,7 +230,6 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
     return (
       <div className="h-full w-full relative">
         <AboutPage onBack={() => setPage('game')} onPrivacy={() => setPage('privacy')} />
-        <Footer onNavigate={(p) => setPage(p)} />
       </div>
     );
   }
@@ -238,7 +237,6 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
     return (
       <div className="h-full w-full relative">
         <PrivacyPage onBack={() => setPage('about')} />
-        <Footer onNavigate={(p) => setPage(p)} />
       </div>
     );
   }
