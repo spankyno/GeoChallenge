@@ -8,7 +8,7 @@ Juego de geografía interactivo sobre un mapa (React + Vite + MapLibre).
 npm install
 npm run dev
 ```
- 
+
 ## Modos de juego
 
 | Modo | Descripción |
@@ -115,3 +115,34 @@ curl -s -X POST "https://TU-DOMINIO.pages.dev/api/scores" \
 ```
 
 Si GET devuelve `D1 binding DB missing`, el binding no está en el entorno de ese deploy.
+
+## Seguridad (actualización)
+
+### Migraciones D1
+
+Aplica también la migración de seguridad:
+
+```bash
+npx wrangler d1 migrations apply geo-challenge-db --remote
+```
+
+La migración `0003_security.sql` crea las tablas de limitación de peticiones y de partidas diarias anónimas. Si no utilizas el sistema de migraciones de Wrangler, ejecuta el SQL de ese archivo sobre la base D1 vinculada como `DB`.
+
+### Verificación de sesiones Clerk
+
+En Cloudflare Pages → Settings → Variables and Secrets, configura `CLERK_JWT_PUBLIC_KEY` con la clave pública PEM de la misma aplicación Clerk utilizada por el frontend (Clerk Dashboard → API Keys → JWT public key). No introduzcas la clave privada ni la Secret Key de Clerk. Después, vuelve a desplegar.
+
+Las puntuaciones de usuarios autenticados se asocian exclusivamente al `sub` del JWT verificado; el backend ignora cualquier `clerk_user_id` enviado por el navegador. Si la clave pública no está configurada, las peticiones autenticadas se rechazan de forma segura.
+
+### Límites y alcance anti-trampas
+
+- `POST /api/scores`: máximo 8 envíos por IP y minuto, tamaño JSON limitado, validación estricta de campos y comprobaciones de coherencia de puntuación.
+- `POST /api/plays`: máximo 5 partidas diarias de invitado por IP, registrado en D1. Es un límite compartido por usuarios que salen a Internet con la misma IP.
+- La API no confía en el identificador de usuario recibido del cliente.
+- La inserción y poda del top 100 se ejecutan mediante un batch transaccional de D1.
+
+**Limitación importante:** el motor de preguntas y el cálculo de las respuestas siguen ejecutándose en el navegador. Las comprobaciones matemáticas impiden valores fuera de los límites plausibles, pero no demuestran que una partida se haya jugado realmente. Para un ranking plenamente resistente a trampas habría que trasladar la emisión de preguntas y la evaluación de respuestas al servidor. Esta versión no presenta el ranking como criptográficamente verificable.
+
+### Cabeceras HTTP
+
+El archivo `public/_headers` se copia a `dist/_headers` durante el build e incluye CSP y cabeceras anti-clickjacking, MIME sniffing y referrer. Si Clerk o el mapa dejan de cargar por cambios en sus dominios/CDN, ajusta explícitamente las directivas CSP; evita eliminar toda la política.

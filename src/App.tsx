@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { useUser } from '@clerk/react';
+import { useAuth, useUser } from '@clerk/react';
 import { MapView } from './components/MapView';
 import { SetupPanel } from './components/SetupPanel';
 import { QuestionPanel } from './components/QuestionPanel';
@@ -18,12 +18,8 @@ import {
   processAnswer,
 } from './game/engine';
 import { getEntityCenter } from './game/geometry';
-import {
-  canPlayAsAnonymous,
-  recordAnonymousPlay,
-  getAnonymousPlaysRemaining,
-  ANON_DAILY_LIMIT,
-} from './lib/playLimit';
+import { ANON_DAILY_LIMIT, getAnonymousPlaysRemaining, recordAnonymousPlay } from './lib/playLimit';
+import { reserveAnonymousPlay } from './api/scores';
 
 type Phase = 'setup' | 'loading' | 'playing' | 'feedback' | 'summary';
 type Page = 'game' | 'about' | 'privacy';
@@ -39,11 +35,12 @@ const DEFAULT_CONFIG: GameConfig = {
 
 export default function App() {
   if (HAS_CLERK) return <AppWithClerk />;
-  return <AppCore isSignedIn={false} clerkUserId={null} displayName={null} />;
+  return <AppCore isSignedIn={false} displayName={null} />;
 }
 
 function AppWithClerk() {
   const { isSignedIn, user } = useUser();
+  const { getToken } = useAuth();
   const displayName =
     user?.fullName ||
     user?.username ||
@@ -52,19 +49,19 @@ function AppWithClerk() {
   return (
     <AppCore
       isSignedIn={!!isSignedIn}
-      clerkUserId={user?.id ?? null}
       displayName={displayName}
+      getAuthToken={getToken}
     />
   );
 }
 
 interface AppCoreProps {
   isSignedIn: boolean;
-  clerkUserId: string | null;
   displayName: string | null;
+  getAuthToken?: () => Promise<string | null>;
 }
 
-function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
+function AppCore({ isSignedIn, displayName, getAuthToken }: AppCoreProps) {
   const [phase, setPhase] = useState<Phase>('setup');
   const [config, setConfig] = useState<GameConfig>(DEFAULT_CONFIG);
   const [entities, setEntities] = useState<GeoEntity[]>([]);
@@ -87,15 +84,6 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
     setLoadError(null);
     setLimitMsg(null);
 
-    // Límite diario solo para no registrados
-    if (!isSignedIn) {
-      if (!canPlayAsAnonymous()) {
-        setLimitMsg(
-          `Has alcanzado el límite de ${ANON_DAILY_LIMIT} partidas diarias como invitado. Regístrate para jugar sin límite.`
-        );
-        return;
-      }
-    }
 
     setPhase('loading');
 
@@ -118,6 +106,17 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
         setCountryOutlines([]);
       }
       const qs = generateQuestions(loaded, config.questionCount);
+      // El límite de invitado se aplica en D1, no en localStorage.
+      if (!isSignedIn) {
+        const reservation = await reserveAnonymousPlay();
+        if (!reservation.allowed) {
+          setLimitMsg(reservation.message || `Has alcanzado el límite de ${ANON_DAILY_LIMIT} partidas diarias como invitado. Regístrate para jugar sin límite.`);
+          setPhase('setup');
+          return;
+        }
+        // Solo para reflejar el contador visual local; el límite real ya se ha aplicado en D1.
+        recordAnonymousPlay();
+      }
       setEntities(loaded);
       setQuestions(qs);
       setCurrentIndex(0);
@@ -125,11 +124,6 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
       setResult(null);
       setClickedLngLat(null);
       setMapResetToken((n) => n + 1);
-
-      // Consumir cupo anónimo al empezar la partida
-      if (!isSignedIn) {
-        recordAnonymousPlay();
-      }
 
       setPhase('playing');
     } catch (err) {
@@ -326,7 +320,7 @@ function AppCore({ isSignedIn, clerkUserId, displayName }: AppCoreProps) {
               score={score}
               config={config}
               isSignedIn={isSignedIn}
-              clerkUserId={clerkUserId}
+              getAuthToken={getAuthToken}
               defaultDisplayName={displayName}
               onRestart={handleRestart}
               onNewConfig={handleNewConfig}

@@ -13,7 +13,7 @@ export interface SubmitScorePayload {
   correct: number;
   total: number;
   hints_used: number;
-  clerk_user_id?: string;
+  authToken?: string;
 }
 
 export interface SubmitScoreResult {
@@ -30,7 +30,10 @@ export async function submitScore(payload: SubmitScorePayload): Promise<SubmitSc
   try {
     const res = await fetch('/api/scores', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+          'Content-Type': 'application/json',
+          ...(payload.authToken ? { Authorization: `Bearer ${payload.authToken}` } : {}),
+        },
       body: JSON.stringify({
         username: payload.username?.trim() || 'Anónimo',
         game_mode: payload.game_mode,
@@ -40,7 +43,6 @@ export async function submitScore(payload: SubmitScorePayload): Promise<SubmitSc
         correct: payload.correct,
         total: payload.total,
         hints_used: payload.hints_used,
-        clerk_user_id: payload.clerk_user_id || null,
       }),
     });
     if (!res.ok) return { ok: false, message: `HTTP ${res.status}` };
@@ -52,7 +54,7 @@ export async function submitScore(payload: SubmitScorePayload): Promise<SubmitSc
 }
 
 export async function fetchLeaderboard(limit = 100): Promise<ScoreRow[]> {
-  const res = await fetch(`/api/scores?limit=${Math.min(limit, 100)}`);
+  const res = await fetch(`/api/scores?limit=${Math.max(1, Math.min(Number.isFinite(limit) ? Math.floor(limit) : 100, 100))}`);
   if (!res.ok) throw new Error(`scores ${res.status}`);
   const data = await res.json();
   return Array.isArray(data) ? data : data.scores ?? [];
@@ -61,7 +63,8 @@ export async function fetchLeaderboard(limit = 100): Promise<ScoreRow[]> {
 export function scorePayloadFromGame(
   config: GameConfig,
   score: GameScore,
-  username = 'Anónimo'
+  username = 'Anónimo',
+  authToken?: string,
 ): SubmitScorePayload {
   return {
     username,
@@ -72,5 +75,18 @@ export function scorePayloadFromGame(
     correct: score.correct,
     total: score.total,
     hints_used: 0,
+    authToken,
   };
+}
+
+/** Reserva en servidor una partida anónima (límite real por IP y día UTC). */
+export async function reserveAnonymousPlay(): Promise<{ allowed: boolean; remaining?: number; message?: string }> {
+  try {
+    const response = await fetch('/api/plays', { method: 'POST' });
+    const data = await response.json();
+    if (!response.ok) return { allowed: false, message: data.error || 'No se pudo validar el límite diario.' };
+    return { allowed: Boolean(data.allowed), remaining: data.remaining };
+  } catch {
+    return { allowed: false, message: 'No se pudo conectar con el control de partidas. Inténtalo de nuevo.' };
+  }
 }

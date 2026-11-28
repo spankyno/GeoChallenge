@@ -8,7 +8,7 @@ interface SummaryPanelProps {
   score: GameScore;
   config: GameConfig;
   isSignedIn: boolean;
-  clerkUserId: string | null;
+  getAuthToken?: () => Promise<string | null>;
   defaultDisplayName: string | null;
   onRestart: () => void;
   onNewConfig: () => void;
@@ -18,7 +18,7 @@ export function SummaryPanel({
   score,
   config,
   isSignedIn,
-  clerkUserId,
+  getAuthToken,
   defaultDisplayName,
   onRestart,
   onNewConfig,
@@ -48,9 +48,23 @@ export function SummaryPanel({
       ? username.trim().slice(0, 40) || defaultDisplayName || 'Jugador'
       : 'Anónimo';
 
+    let authToken: string | undefined;
+    if (isSignedIn) {
+      try {
+        authToken = (await getAuthToken?.()) ?? undefined;
+      } catch {
+        setSaving(false);
+        setSaveError('No se pudo verificar tu sesión. Cierra sesión y vuelve a entrar.');
+        return;
+      }
+      if (!authToken) {
+        setSaving(false);
+        setSaveError('No se ha podido obtener el token de sesión de Clerk.');
+        return;
+      }
+    }
     const result = await submitScore({
-      ...scorePayloadFromGame(config, score, name),
-      clerk_user_id: isSignedIn ? clerkUserId ?? undefined : undefined,
+      ...scorePayloadFromGame(config, score, name, authToken ?? undefined),
     });
     setSaving(false);
 
