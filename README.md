@@ -8,7 +8,7 @@ Juego de geografía interactivo sobre un mapa (React + Vite + MapLibre).
 npm install
 npm run dev
 ```
-
+ 
 ## Modos de juego
 
 | Modo | Descripción |
